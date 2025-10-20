@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "495985397843",
+    "project_id": "pharmafinderapp-15977",
+    "storage_bucket": "pharmafinderapp-15977.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:495985397843:android:1cea9cf9c99f999e84b6a6",
+        "android_client_info": {
+          "package_name": "com.example.pharma_finder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCx98Sppzous_oOciVWio7It_KUc6Y-4h4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
