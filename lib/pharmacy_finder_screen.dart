@@ -71,10 +71,11 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
     }
   }
 
-  // 3. CORRECTED function to launch map for navigation (FINAL RELIABLE URL)
+  // 3. function to launch map for navigation 
   Future<void> _launchMap(double lat, double lon) async {
-    // Correct URL format for navigation to a specific coordinate
-    final urlString = 'http://maps.apple.com/?daddr=$lat,$lon'; 
+    // Universal Google Maps format: opens the Google Maps app or website for directions (daddr).
+    // This is the most reliable cross-platform link.
+    final urlString = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lon';
     final url = Uri.parse(urlString); 
     
     if (await canLaunchUrl(url)) {
@@ -86,7 +87,7 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
     }
   }
 
-  // 4. UPDATED Search Function (Case-Insensitive)
+  // 4. UPDATED Search Function (Fuzzy Search/Case Insensitivity)
   Future<void> _searchPharmacies(String medicineName) async {
     if (medicineName.isEmpty) {
       setState(() { _pharmacyResults = []; });
@@ -95,8 +96,7 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
 
     setState(() { _isLoading = true; });
     
-    // --- FUZZY SEARCH IMPLEMENTATION ---
-    // 1. Normalize query to lowercase (Requires database names to be lowercase!)
+    // Normalize query to lowercase (Requires database names to be lowercase!)
     final String normalizedQuery = medicineName.toLowerCase().trim();
     
     await _getCurrentLocation();
@@ -107,7 +107,7 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
     }
 
     try {
-      // 2. Query the all-lowercase database field
+      // Query the all-lowercase database field
       final inventoryQuery = await FirebaseFirestore.instance
           .collection('pharmacyInventory')
           .where('medicineName', isEqualTo: normalizedQuery) 
@@ -130,7 +130,6 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
 
       for (var doc in pharmacyQuery.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        // CRITICAL FIX: Safely retrieve GeoPoint to prevent crash
         final GeoPoint? location = data['location'] as GeoPoint?;
         
         // Skip this pharmacy if location data is missing/null
