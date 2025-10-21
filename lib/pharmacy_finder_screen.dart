@@ -1,4 +1,3 @@
-// In lib/pharmacy_finder_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,7 +29,7 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
   }
   
-  // 1. New function to get user's live location
+  // 1. Function to get user's live location
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -50,7 +49,6 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
       permission = await Geolocator.requestPermission();
     }
     
-    // If permission is granted (or already granted), get position
     if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
       Position position = await Geolocator.getCurrentPosition();
       _currentLocation = LatLng(position.latitude, position.longitude);
@@ -61,7 +59,7 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
     }
   }
   
-  // 2. Updated function to launch phone dialer
+  // 2. Function to launch phone dialer
   Future<void> _makePhoneCall(String phoneNumber) async {
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
     if (!await launchUrl(launchUri)) {
@@ -73,21 +71,22 @@ class _PharmacyFinderScreenState extends State<PharmacyFinderScreen> {
     }
   }
 
-  // 3. Updated function to launch map for navigation
-  // Action to launch map for navigation (CORRECTED)
-Future<void> _launchMap(double lat, double lon) async {
-  final urlString = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lon';
-  final url = Uri.parse(urlString); 
-  
-  if (await canLaunchUrl(url)) {
-    await launchUrl(url);
-  } else if (mounted) {
-     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Could not launch map to $lat,$lon'), backgroundColor: Colors.red),
-    );
+  // 3. CORRECTED function to launch map for navigation (FINAL RELIABLE URL)
+  Future<void> _launchMap(double lat, double lon) async {
+    // Correct URL format for navigation to a specific coordinate
+    final urlString = 'http://maps.apple.com/?daddr=$lat,$lon'; 
+    final url = Uri.parse(urlString); 
+    
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else if (mounted) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not launch map application.'), backgroundColor: Colors.red),
+      );
+    }
   }
-}
 
+  // 4. UPDATED Search Function (Case-Insensitive)
   Future<void> _searchPharmacies(String medicineName) async {
     if (medicineName.isEmpty) {
       setState(() { _pharmacyResults = []; });
@@ -95,20 +94,23 @@ Future<void> _launchMap(double lat, double lon) async {
     }
 
     setState(() { _isLoading = true; });
-
-    // Step 0: Get the user's current location
+    
+    // --- FUZZY SEARCH IMPLEMENTATION ---
+    // 1. Normalize query to lowercase (Requires database names to be lowercase!)
+    final String normalizedQuery = medicineName.toLowerCase().trim();
+    
     await _getCurrentLocation();
     
-    // If we can't get location, we can't calculate distance. Return an empty list for now.
     if (_currentLocation == null) {
       setState(() { _isLoading = false; });
       return;
     }
 
     try {
+      // 2. Query the all-lowercase database field
       final inventoryQuery = await FirebaseFirestore.instance
           .collection('pharmacyInventory')
-          .where('medicineName', isEqualTo: medicineName)
+          .where('medicineName', isEqualTo: normalizedQuery) 
           .where('stockStatus', whereIn: ['In Stock', 'Low Stock'])
           .get();
 
@@ -128,8 +130,12 @@ Future<void> _launchMap(double lat, double lon) async {
 
       for (var doc in pharmacyQuery.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final GeoPoint location = data['location'];
+        // CRITICAL FIX: Safely retrieve GeoPoint to prevent crash
+        final GeoPoint? location = data['location'] as GeoPoint?;
         
+        // Skip this pharmacy if location data is missing/null
+        if (location == null) continue;
+
         final distance = _calculateDistance(
           _currentLocation!.latitude, 
           _currentLocation!.longitude,
@@ -169,18 +175,20 @@ Future<void> _launchMap(double lat, double lon) async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Find Medicine'),
+        title: const Text('Find Medicine', style: TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField( /* ... search bar ... */
+            TextField( 
               controller: _searchController,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Enter medicine name (e.g., Dolo 650)',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Enter medicine name (e.g., dolo 650)',
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).primaryColor),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 suffixIcon: IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); _searchPharmacies(''); }),
               ),
@@ -191,7 +199,7 @@ Future<void> _launchMap(double lat, double lon) async {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _pharmacyResults.isEmpty
-                      ? Center(child: Text(_currentLocation == null ? 'Acquiring location...' : 'Type a medicine name to begin search.'))
+                      ? Center(child: Text(_currentLocation == null ? 'Acquiring location...' : 'No stock found for this medicine near you.'))
                       : ListView.builder(
                           itemCount: _pharmacyResults.length,
                           itemBuilder: (context, index) {
@@ -205,34 +213,47 @@ Future<void> _launchMap(double lat, double lon) async {
                               stockColor = Colors.orange;
                             }
                             
+                            // Polished UI Elements
                             final cardColor = isNearest ? Colors.teal.shade50 : Colors.white;
 
                             return Card(
+                              elevation: isNearest ? 6 : 2, 
                               color: cardColor,
-                              margin: const EdgeInsets.only(bottom: 8),
+                              margin: const EdgeInsets.only(bottom: 12), 
                               child: Column(
                                 children: [
+                                  if (isNearest) 
+                                    Container(
+                                      color: Theme.of(context).primaryColor,
+                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                      width: double.infinity,
+                                      child: const Text('🌟 CLOSEST PHARMACY', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ),
                                   ListTile(
                                     leading: Icon(
                                       Icons.local_pharmacy, 
-                                      color: isNearest ? Colors.teal : Colors.grey.shade700,
+                                      color: Theme.of(context).primaryColor,
+                                      size: 30,
                                     ),
                                     title: Text(
                                       pharmacy['name'],
-                                      style: TextStyle(fontWeight: isNearest ? FontWeight.bold : FontWeight.normal),
+                                      style: TextStyle(fontWeight: isNearest ? FontWeight.w900 : FontWeight.bold, fontSize: 17),
                                     ),
                                     subtitle: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(pharmacy['address']),
+                                        const SizedBox(height: 4),
                                         Row(
                                           children: [
                                             // Distance and Rating
+                                            Icon(Icons.near_me, color: Colors.blue, size: 16),
+                                            const SizedBox(width: 4),
                                             Text(
-                                              '${pharmacy['distance'].toStringAsFixed(1)} km away',
-                                              style: const TextStyle(fontWeight: FontWeight.bold),
+                                              '${pharmacy['distance'].toStringAsFixed(1)} km',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(width: 12),
                                             Icon(Icons.star, color: Colors.amber, size: 16),
                                             Text('${pharmacy['rating'].toString()}'),
                                           ],
@@ -240,14 +261,15 @@ Future<void> _launchMap(double lat, double lon) async {
                                       ],
                                     ),
                                     trailing: Container(
-                                      padding: const EdgeInsets.all(4),
+                                      // Stock Status Pill Badge
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: stockColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(5),
+                                        color: stockColor,
+                                        borderRadius: BorderRadius.circular(20), // Pill Shape
                                       ),
                                       child: Text(
                                         pharmacy['stockStatus'],
-                                        style: TextStyle(color: stockColor, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                                       ),
                                     ),
                                   ),
@@ -257,16 +279,21 @@ Future<void> _launchMap(double lat, double lon) async {
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
-                                        TextButton.icon(
-                                          onPressed: () => _makePhoneCall(pharmacy['phoneNumber']), // Use the number from the data
-                                          icon: const Icon(Icons.call, color: Colors.blue),
-                                          label: const Text('Call'),
+                                        // Polished Call Button
+                                        OutlinedButton.icon(
+                                          onPressed: () => _makePhoneCall(pharmacy['phoneNumber']), 
+                                          icon: const Icon(Icons.call, size: 18),
+                                          label: const Text('CALL'),
                                         ),
                                         const SizedBox(width: 8),
-                                        TextButton.icon(
+                                        // Polished Navigate Button
+                                        ElevatedButton.icon(
                                           onPressed: () => _launchMap(pharmacy['lat'], pharmacy['lon']),
-                                          icon: const Icon(Icons.navigation, color: Colors.green),
-                                          label: const Text('Navigate'),
+                                          icon: const Icon(Icons.navigation, color: Colors.white, size: 18),
+                                          label: const Text('NAVIGATE', style: TextStyle(color: Colors.white)),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Theme.of(context).primaryColor, 
+                                          ),
                                         ),
                                       ],
                                     ),

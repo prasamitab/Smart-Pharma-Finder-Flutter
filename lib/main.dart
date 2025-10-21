@@ -11,6 +11,9 @@ import 'map_screen.dart';
 import 'auth_screen.dart';
 import 'chatbot_screen.dart'; 
 import 'admin_dashboard_screen.dart';
+import 'about_screen.dart';
+import 'profile_screen.dart'; // NEW: Profile Screen Import
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,14 +28,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Define the professional primary color
+    const Color primaryTeal = Color(0xFF00796B); 
+
     return MaterialApp(
       title: 'Pharma Finder',
       theme: ThemeData(
-        primarySwatch: Colors.teal,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        primaryColor: primaryTeal,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryTeal,
+          primary: primaryTeal,
+        ),
         useMaterial3: true,
+        fontFamily: GoogleFonts.montserrat().fontFamily,
       ),
-      // --- AUTH GATE: Checks if user is logged in ---
+      // --- AUTH GATE ---
       home: StreamBuilder(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (ctx, userSnapshot) {
@@ -40,11 +50,9 @@ class MyApp extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (userSnapshot.hasData) {
-            // User is logged in, pass the real UID to HomeScreen
             final currentUserId = userSnapshot.data!.uid;
             return HomeScreen(userId: currentUserId); 
           }
-          // User is NOT logged in, show the Auth screen
           return const AuthScreen(); 
         },
       ),
@@ -54,7 +62,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// --- UPDATED HOMESCREEN: Accepts the real userId ---
+// --- POLISHED HOMESCREEN ---
 class HomeScreen extends StatelessWidget {
   final String userId; 
   
@@ -68,14 +76,26 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('Dashboard', style: TextStyle(color: Colors.white)),
         elevation: 4,
+        backgroundColor: Theme.of(context).primaryColor, 
         actions: [
-          // 1. TEMPORARY ADMIN ACCESS BUTTON (NEW)
+          // 1. NEW: Profile/Settings Icon (Replaces the old Logout Button's position)
           IconButton(
-            icon: const Icon(Icons.admin_panel_settings, color: Colors.red),
+            icon: const Icon(Icons.settings, color: Colors.white),
             onPressed: () {
-              // Navigate to the Admin Dashboard Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+            tooltip: 'Profile & Settings',
+          ),
+
+          // 2. TEMPORARY ADMIN ACCESS BUTTON 
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+            onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
@@ -84,9 +104,9 @@ class HomeScreen extends StatelessWidget {
             tooltip: 'Admin Access',
           ),
           
-          // 2. Launch Chatbot Button
+          // 3. Launch Chatbot Button
           IconButton(
-            icon: const Icon(Icons.forum, color: Colors.blueGrey),
+            icon: const Icon(Icons.forum, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -96,11 +116,16 @@ class HomeScreen extends StatelessWidget {
             tooltip: 'Chat with Eco-Bot',
           ),
           
-          // 3. User Logout Button
+          // 4. About/Mission Button
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
+            icon: const Icon(Icons.info_outline, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AboutScreen()),
+              );
+            },
+            tooltip: 'Our Mission & About Us',
           ),
         ],
       ),
@@ -110,7 +135,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Search Bar
+            // Search Bar (Polished Look)
             InkWell(
               onTap: () {
                 Navigator.push(
@@ -121,12 +146,13 @@ class HomeScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
+                  color: Colors.grey.shade100,
+                  border: Border.all(color: Colors.grey.shade300),
                   borderRadius: const BorderRadius.all(Radius.circular(25.0)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.search, color: Colors.grey.shade600),
+                    Icon(Icons.search, color: Theme.of(context).primaryColor),
                     const SizedBox(width: 10),
                     Text('Find Medicine Near Me...', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
                   ],
@@ -135,9 +161,9 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Return Medicines Card
+            // Return Medicines Card (Enhanced Styling)
             Card(
-              elevation: 2,
+              elevation: 4, 
               child: InkWell(
                 onTap: () async {
                   final qrCodeResult = await Navigator.push<String>(
@@ -150,20 +176,20 @@ class HomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => MedicineReturnScreen(
                           qrCodeValue: qrCodeResult,
-                          userId: userId, // PASSING THE REAL UID
+                          userId: userId,
                         ),
                       ),
                     );
                   }
                 },
-                child: const Padding(
-                  padding: EdgeInsets.all(20.0),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.qr_code_scanner, color: Colors.teal, size: 28),
-                      SizedBox(width: 12),
-                      Text('Return Medicines', style: TextStyle(fontSize: 18)),
+                      Icon(Icons.qr_code_scanner, color: Theme.of(context).primaryColor, size: 32),
+                      const SizedBox(width: 16),
+                      const Text('RETURN MEDICINES', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -171,47 +197,45 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // My Points & Rewards Card (with StreamBuilder)
+            // My Points & Rewards Card (Enhanced Styling)
             InkWell(
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => RewardsScreen(userId: userId)), // PASSING THE REAL UID
+                  MaterialPageRoute(builder: (context) => RewardsScreen(userId: userId)),
                 );
               },
               child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(), // Using the real UID
+                stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Card(child: Padding(padding: EdgeInsets.all(30.0), child: Center(child: CircularProgressIndicator())));
                   }
-                  if (snapshot.hasError) {
-                    return const Card(child: Padding(padding: EdgeInsets.all(20.0), child: Center(child: Text('Error loading points.'))));
-                  }
-                  if (!snapshot.hasData || !snapshot.data!.exists) {
-                    return const Card(child: Padding(padding: EdgeInsets.all(20.0), child: Center(child: Text('User not found. Please register a new account.'))));
+                  if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                    return const Card(child: Padding(padding: EdgeInsets.all(20.0), child: Center(child: Text('User data error.'))));
                   }
 
                   final userData = snapshot.data!.data() as Map<String, dynamic>;
                   final int ecoPoints = userData['ecoPoints'] ?? 0;
 
                   return Card(
-                    elevation: 2,
+                    elevation: 4,
+                    color: Colors.teal.shade50,
                     child: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                      padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
                           Text(
-                            'My Points & Rewards',
-                            style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                            'MY POINTS & REWARDS',
+                            style: TextStyle(fontSize: 16, color: Colors.grey[700], fontWeight: FontWeight.w500),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           Text(
-                            '$ecoPoints Eco-Points',
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.teal,
+                            '$ecoPoints 🌿',
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w900,
+                              color: Theme.of(context).primaryColor,
                             ),
                           ),
                         ],
@@ -224,17 +248,25 @@ class HomeScreen extends StatelessWidget {
 
             const Spacer(),
 
-            // "Did You Know?" Tip
+            // "Did You Know?" Tip (Polished)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.1),
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                '💡 Did you know? Flushing unused medicines pollutes our rivers and drinking water.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.orange.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Flushing unused meds pollutes our rivers!',
+                      textAlign: TextAlign.left,
+                      style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black87),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -248,7 +280,7 @@ class HomeScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const MapScreen()),
           );
         },
-        backgroundColor: Colors.teal,
+        backgroundColor: Theme.of(context).primaryColor,
         child: const Icon(Icons.map, color: Colors.white),
       ),
       // --- END OF MAP BUTTON INSERTION ---

@@ -1,13 +1,11 @@
-// In lib/medicine_return_screen.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'success_screen.dart'; 
 
 class MedicineReturnScreen extends StatefulWidget {
   final String qrCodeValue;
-  final String userId; // Field to accept the User ID
+  final String userId; 
 
-  // Constructor is updated to require the userId
   const MedicineReturnScreen({super.key, required this.qrCodeValue, required this.userId});
 
   @override
@@ -19,6 +17,7 @@ class _MedicineReturnScreenState extends State<MedicineReturnScreen> {
   final _quantityController = TextEditingController();
   bool _isExpired = true;
   bool _isSaving = false;
+  final int _pointsAwarded = 25; // Define the points here
 
   Future<void> _saveReturn() async {
     if (_medicineNameController.text.isEmpty || _quantityController.text.isEmpty) {
@@ -30,7 +29,6 @@ class _MedicineReturnScreenState extends State<MedicineReturnScreen> {
 
     setState(() { _isSaving = true; });
 
-    // The userId is now widget.userId, passed from main.dart
     final firestore = FirebaseFirestore.instance;
     final userRef = firestore.collection('users').doc(widget.userId);
     final returnRef = firestore.collection('medicineReturns').doc();
@@ -38,27 +36,31 @@ class _MedicineReturnScreenState extends State<MedicineReturnScreen> {
     try {
       // Use a transaction to ensure both operations succeed or fail together
       await firestore.runTransaction((transaction) async {
-        // 1. Save the new medicine return document (linked to the correct user)
+        // 1. Save the new medicine return document
         transaction.set(returnRef, {
           'medicineName': _medicineNameController.text,
           'quantity': int.tryParse(_quantityController.text) ?? 0,
           'isExpired': _isExpired,
           'qrCodeValue': widget.qrCodeValue,
           'returnedAt': Timestamp.now(),
-          'userId': widget.userId, // Using the live user ID
+          'userId': widget.userId,
         });
 
-        // 2. Add 25 points to the user's ecoPoints
+        // 2. Add points to the user's ecoPoints
         transaction.update(userRef, {
-          'ecoPoints': FieldValue.increment(25),
+          'ecoPoints': FieldValue.increment(_pointsAwarded),
         });
       });
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Success! You earned 25 eco-points! 🌿'), backgroundColor: Colors.green),
+        // --- FIX IS HERE: Correctly navigating to the imported widget ---
+        Navigator.pushReplacement( 
+          context,
+          MaterialPageRoute(
+            // The widget name must match the class name exactly
+            builder: (context) => SuccessScreen(pointsEarned: _pointsAwarded), 
+          ),
         );
-        Navigator.pop(context);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +75,6 @@ class _MedicineReturnScreenState extends State<MedicineReturnScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // UI remains the same
     return Scaffold(
       appBar: AppBar(
         title: const Text('Log Medicine Return'),
